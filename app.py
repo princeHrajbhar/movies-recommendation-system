@@ -1,5 +1,7 @@
 import pickle
 import streamlit as st
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -11,7 +13,6 @@ st.set_page_config(
 # ---------------- CUSTOM CSS ----------------
 st.markdown("""
 <style>
-/* Recommendation Card Style */
 .recommend-card {
     background: linear-gradient(135deg, #1f2937, #111827);
     color: #ffffff;
@@ -22,7 +23,6 @@ st.markdown("""
     box-shadow: 0 4px 10px rgba(0,0,0,0.25);
 }
 
-/* Center button */
 div.stButton > button {
     width: 100%;
     background-color: #2563eb;
@@ -35,7 +35,16 @@ div.stButton > button {
 
 # ---------------- LOAD DATA ----------------
 movies = pickle.load(open('movies.pkl', 'rb'))
-similarity = pickle.load(open('similarity.pkl', 'rb'))
+
+# ---------------- BUILD SIMILARITY (RUNTIME) ----------------
+@st.cache_data(show_spinner=True)
+def build_similarity(data):
+    cv = CountVectorizer(max_features=5000, stop_words='english')
+    vectors = cv.fit_transform(data['tags']).toarray()
+    similarity_matrix = cosine_similarity(vectors)
+    return similarity_matrix
+
+similarity = build_similarity(movies)
 
 # ---------------- SIDEBAR ----------------
 st.sidebar.title("🎥 Movie Recommender")
@@ -82,11 +91,7 @@ def recommend(movie):
         key=lambda x: x[1]
     )
 
-    recommendations = []
-    for i in distances[1:6]:
-        recommendations.append(movies.iloc[i[0]].title)
-
-    return recommendations
+    return [movies.iloc[i[0]].title for i in distances[1:6]]
 
 # ---------------- MOVIE SELECT ----------------
 col1, col2, col3 = st.columns([1, 2, 1])
